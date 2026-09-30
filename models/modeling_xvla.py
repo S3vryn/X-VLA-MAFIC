@@ -101,6 +101,19 @@ class XVLA(PreTrainedModel):
         self.app: FastAPI | None = None
 
     # ============================= Florence2 encoder =============================
+    def drop_action_layers(self, keep_indices):
+        """Keep selected pretrained blocks in order and persist the reduced depth."""
+        indices = list(keep_indices)
+        blocks = self.transformer.blocks
+        if not indices or indices != sorted(set(indices)):
+            raise ValueError("keep_indices must be nonempty, unique, and increasing")
+        if indices[0] < 0 or indices[-1] >= len(blocks):
+            raise ValueError("keep_indices is outside the current transformer depth")
+        self.transformer.blocks = torch.nn.ModuleList([blocks[i] for i in indices])
+        self.config.source_depth = len(blocks)
+        self.config.source_layer_indices = indices
+        self.config.depth = len(indices)
+
     def forward_vlm(
         self,
         input_ids: torch.LongTensor,        # [B, L]
